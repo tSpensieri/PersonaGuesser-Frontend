@@ -1,0 +1,114 @@
+---
+const BASE_URL = 'http://localhost:8080/game'; // Replace with your backend URL
+---
+
+<main class="flex-1 flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-800 px-4 md:px-8 lg:px-12">
+  <div class="max-w-2xl w-full bg-white dark:bg-gray-900 rounded-lg shadow-md p-8 flex flex-col items-center justify-center">
+    <p class="text-lg text-gray-600 dark:text-gray-400 mb-4">Indovina il personaggio famoso | AI Powered</p>
+    <div class="w-full flex flex-col items-end">
+      <input
+        type="text"
+        placeholder="Inserisci risposta..."
+        id="guess-input"
+        class="mb-4 bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 focus:ring-gray-600 focus:border-gray-600 rounded-md px-4 py-2 w-full max-w-md"
+      />
+      <button
+        class="mt-2 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+        id="submit-button"
+      >
+        Invia
+      </button>
+      <p id="message" class="mt-4 text-gray-900 dark:text-gray-100"></p>
+      <p id="hint" class="mt-4 text-white"></p> <!-- Ensure hints are white -->
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div id="popup-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+      <p id="popup-message" class="text-lg"></p>
+      <button id="close-popup" class="mt-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Close</button>
+    </div>
+  </div>
+</main>
+
+<script type="module">
+  const BASE_URL = 'http://localhost:8080/game'; // Replace with your backend URL
+
+  async function fetchHint() {
+    try {
+      const response = await fetch(`${BASE_URL}/hint`);
+      const data = await response.json();
+      return data.hint;
+    } catch (error) {
+      console.error('Error fetching hint:', error);
+      throw new Error('Failed to fetch a hint, please try again.');
+    }
+  }
+
+  async function submitGuess(guess) {
+    try {
+      const response = await fetch(`${BASE_URL}/guess?guess=${encodeURIComponent(guess)}`, {
+        method: 'POST',
+      });
+      const data = await response.json();
+      return data.message;
+    } catch (error) {
+      console.error('Error submitting guess:', error);
+      throw new Error('Failed to submit your guess, please try again.');
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    const guessInput = document.getElementById('guess-input');
+    const submitButton = document.getElementById('submit-button');
+    const messageElement = document.getElementById('message');
+    const hintElement = document.getElementById('hint');
+    const popupModal = document.getElementById('popup-modal');
+    const popupMessage = document.getElementById('popup-message');
+    const closePopupButton = document.getElementById('close-popup');
+
+    async function getInitialHint() {
+      try {
+        const hint = await fetchHint();
+        hintElement.textContent = `Suggerimento: ${hint}`;
+      } catch (error) {
+        hintElement.textContent = 'Errore suggerimento';
+      }
+    }
+
+    async function handleGuessSubmission() {
+      try {
+        const guess = guessInput.value;
+        const message = await submitGuess(guess);
+        messageElement.textContent = message;
+
+        if (message.includes('Corretto')) {
+          popupMessage.textContent = 'Corretto! Hai indovinato!';
+          popupMessage.className = 'text-green-500';
+        } else {
+          popupMessage.textContent = 'Errato! Riprova!';
+          popupMessage.className = 'text-red-500';
+        }
+
+        popupModal.classList.remove('hidden');
+
+        if (message.includes('Incorrect')) {
+          const hint = await fetchHint();
+          hintElement.textContent = `Suggerimento: ${hint}`;
+        }
+      } catch (error) {
+        messageElement.textContent = 'Error submitting guess';
+      }
+    }
+
+    closePopupButton.addEventListener('click', () => {
+      popupModal.classList.add('hidden');
+    });
+
+    submitButton.addEventListener('click', handleGuessSubmission);
+
+    // Fetch the initial hint when the component mounts
+    await getInitialHint();
+  });
+</script>
